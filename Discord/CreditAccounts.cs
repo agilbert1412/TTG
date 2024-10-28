@@ -68,7 +68,7 @@ namespace TTGHotS.Discord
 
         public void ExportTo(string creditsFile)
         {
-            var json = JsonConvert.SerializeObject(this.ToList());
+            var json = JsonConvert.SerializeObject(this.ToList(), Formatting.Indented);
             File.WriteAllText(creditsFile, json);
         }
 

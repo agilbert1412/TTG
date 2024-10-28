@@ -16,7 +16,7 @@ namespace TTGHotS
     {
         private readonly IBotCommunicator _communications;
 
-        private readonly ChannelSet _activeChannels = ChannelSet.ExtraLifeChannels;
+        private readonly ChannelSet _activeChannels = ChannelSet.TestMyBotsChannels;
 
         private readonly CreditsCommandsHandler _creditsCommandsHandler;
         private readonly EventsCommandsHandler _eventsCommandsHandler;
@@ -63,7 +63,7 @@ namespace TTGHotS
             Console.WriteLine(_goals.Count + " is the total goal count.");
             Console.WriteLine(_events.Count + " is the total events count.");
 
-            ClearBankDEVONLY();
+            // ClearBankDEVONLY();
             //return;
         }
 
@@ -239,7 +239,7 @@ namespace TTGHotS
             if (baseEventName.Contains("missiongoal"))
             {
                 var eventMission = baseEventName.Split("missiongoal")[1];
-                if (eventMission.ToLower() != currentMission)
+                if (eventMission != currentMission)
                 {
                     Console.WriteLine("Blocked mission goal from " + eventMission + " since we are on " +
                                       currentMission + ".");

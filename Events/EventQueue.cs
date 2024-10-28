@@ -43,7 +43,7 @@ namespace TTGHotS.Events
 
         public void ExportTo(string eventsQueueFile)
         {
-            var json = JsonConvert.SerializeObject(_eventQueue);
+            var json = JsonConvert.SerializeObject(_eventQueue, Formatting.Indented);
             File.WriteAllText(eventsQueueFile, json);
         }
 
