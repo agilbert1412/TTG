@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TTGHotS", "TTGHotS.csproj", "{930AA6C0-9909-4835-90B8-14AFF62F321C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{54C40BA0-AD04-4774-9E2B-8F09AF5F44F9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{930AA6C0-9909-4835-90B8-14AFF62F321C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{930AA6C0-9909-4835-90B8-14AFF62F321C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{930AA6C0-9909-4835-90B8-14AFF62F321C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{930AA6C0-9909-4835-90B8-14AFF62F321C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1BAB4BEB-D0A9-4B64-A38A-4BBF2C24AC1A}
+	EndGlobalSection
+EndGlobal
