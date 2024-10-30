@@ -48,14 +48,14 @@ namespace TTGHotS
             _communications = communications;
             _commandReader = new CommandReader();
             _xml = new XmlHandler();
-            _helpProvider = new HelpProvider(_communications, _xml, _activeChannels);
+            _goals = new Goals(_communications, _xml, _activeChannels.EventsChannel);
+            _helpProvider = new HelpProvider(_communications, _xml, _activeChannels, _goals);
             _creditsCommandsHandler = new CreditsCommandsHandler(_communications, _commandReader);
             _eventsCommandsHandler = new EventsCommandsHandler(_communications, _commandReader, _xml, _helpProvider);
             _donationsCommandsHandler = new DonationsCommandsHandler(_communications, _activeChannels);
             _accounts = new CreditAccounts(_communications);
             _events = new EventCollection(_communications);
             _eventQueue = new EventQueue(_communications);
-            _goals = new Goals(_communications, _xml, _activeChannels.EventsChannel);
 
             SetupData();
             Console.WriteLine($"SoA Read: {_xml.GetSpearOfAdunAbility(0)}");
@@ -118,7 +118,7 @@ namespace TTGHotS
 
             HandleAdminCommands(message, messageText);
             await HandleUserCommands(message, messageText, senderName);
-            HandleDonationCommands(message);
+            await HandleDonationCommands(message);
             ExportData();
 
             DequeueUntilQueueEmpty();
@@ -165,18 +165,18 @@ namespace TTGHotS
                 return;
             }
 
-            _creditsCommandsHandler.HandleCreditsUserCommands(message, messageText, _accounts);
-            _eventsCommandsHandler.HandleEventsUserCommands(message, messageText, _accounts, _events, _eventQueue, _goals);
+            await _creditsCommandsHandler.HandleCreditsUserCommands(message, messageText, _accounts);
+            await _eventsCommandsHandler.HandleEventsUserCommands(message, messageText, _accounts, _events, _eventQueue, _goals);
         }
 
-        private void HandleDonationCommands(SocketUserMessage message)
+        private async Task HandleDonationCommands(SocketUserMessage message)
         {
             if (!(IsInDonationsChannel(message)))
             {
                 return;
             }
 
-            _donationsCommandsHandler.HandleEventsDonationCommands(message, _accounts);
+            await _donationsCommandsHandler.HandleEventsDonationCommands(message, _accounts);
         }
 
         private void ExportData()
@@ -221,14 +221,8 @@ namespace TTGHotS
             _eventQueue.RemoveFirst();
             _eventQueue.PrintToConsole();
 
-
-            var noBuildMissions = new[] { "For Aiur!", "The Infinite Cycle", "Templar's Return" };
+            
             var currentMission = _xml.GetCurrentMission(Format.AsIs);
-            if ((eventToSend.baseEventName == "massrecall" || eventToSend.baseEventName == "chronosurge") && noBuildMissions.Contains(currentMission))
-            {
-                Console.WriteLine("Blocked Chrono Surge/Mass Recall since we are on a no build mission.");
-                return;
-            }
 
             if ((eventToSend.baseEventName == "apocalypse" || eventToSend.baseEventName == "puresolarite") && currentMission == "Templar's Return")
             {

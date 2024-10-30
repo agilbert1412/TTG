@@ -14,6 +14,8 @@ namespace TTGHotS.Events
         public string planet;
         public string timeframe;
         public string type;
+        public string missionChanges;
+        public string goalDescription;
 
         public Goal()
         {
@@ -29,6 +31,10 @@ namespace TTGHotS.Events
             planet = data["planet"].ToString();
             timeframe = data["timeframe"].ToString();
             type = data["type"].ToString();
+
+            missionChanges = data["missionChanges"].ToString();
+            goalDescription = data["goalDescription"].ToString();
+
             if (type == "repeatable")
             {
                 repeatCount = 0;

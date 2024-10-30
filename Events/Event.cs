@@ -6,14 +6,18 @@ namespace TTGHotS.Events
     class Event
     {
         public string name;
-        public int cost;
-        public int bank;
+        public int cost; // The current cost
+        public int basecost; // The cost per tier, if applicable
+        public int bank; // The currently donated credits contributing to the next activation
         public int tier;
-        public string donationType;
-        public string mission;
-        public int basecost;
+        public string donationType; // "onetime", "dynamic", "group" and "repeatable"
+        public string mission; // which mission this can be activated on, or "all" if it's anywhere
+        public string category; // "generic", "mission", "units", "soa", "admin"
         public bool stackable;
+        public bool allowedInNoBuild;
+        public string alignment; // "positive", "negative" or "neutral"
         public string description;
+        public string descriptionAnsi; // the description with coloring!
 
         public Event()
         {
@@ -26,10 +30,15 @@ namespace TTGHotS.Events
             cost = int.Parse(data["cost"].ToString());
             donationType = data["donationType"].ToString();
             mission = data["mission"].ToString();
+            category = data["category"].ToString();  // cost > 99999 ? "admin" : (mission == Mission.ALL ? "generic" : "mission");
             bank = int.Parse(data["bank"].ToString());
             tier = int.Parse(data["tier"].ToString());
             stackable = bool.Parse(data["stackable"].ToString());
+            allowedInNoBuild = bool.Parse(data["allowedInNoBuild"].ToString());
+            alignment = data["alignment"].ToString(); ;
             description = data["description"].ToString();
+
+            descriptionAnsi = data.ContainsKey("descriptionAnsi") && !string.IsNullOrWhiteSpace(data["descriptionAnsi"].ToString()) ? data["descriptionAnsi"].ToString() : description;
 
             if (donationType == "dynamic")
             {

@@ -10,7 +10,8 @@ namespace TTGHotS.Discord
 {
     internal class DiscordBot
     {
-        private const string TOKEN_FILE = @"UserSpecificFiles\token.txt";
+        private const string TOKEN_FILE = @"UserSpecificFiles\token_referencer.txt";
+        // private const string TOKEN_FILE = @"UserSpecificFiles\token_ttg.txt";
 
         private IBotCommunicator _discord;
         private TTGModule _ttgModule;

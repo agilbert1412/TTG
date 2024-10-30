@@ -33,7 +33,8 @@ namespace TTGHotS.Commands
             HandleGlobalPause(message, messageText, eventQueue);
         }
 
-        public async Task HandleEventsUserCommands(SocketUserMessage message, string messageText, CreditAccounts creditAccounts, EventCollection events, EventQueue eventQueue, Goals goals)
+        public async Task HandleEventsUserCommands(SocketUserMessage message, string messageText, CreditAccounts creditAccounts, EventCollection events,
+            EventQueue eventQueue, Goals goals)
         {
             HandleCommandBank(message, messageText, events);
             await HandleCommandPurchase(message, messageText, creditAccounts, events, eventQueue, goals);
@@ -93,7 +94,7 @@ namespace TTGHotS.Commands
             forcedEvent.SetBank(1);
             forcedEvent.SetCost(1);
             forcedEvent.donationType = "onetime";
-            forcedEvent.mission = "all";
+            forcedEvent.mission = Mission.ALL;
             forcedEvent.tier = 0;
             var queuedForcedEvent = new QueuedEvent(forcedEvent);
             queuedForcedEvent.queueCount = 1;
@@ -204,7 +205,7 @@ namespace TTGHotS.Commands
             {
                 return;
             }
-            
+
             _communications.ReplyTo(message, $"The global event price is currently {events.CurrentMultiplier}");
         }
 
@@ -224,7 +225,8 @@ namespace TTGHotS.Commands
             CheckEventBank(message, events, eventName);
         }
 
-        private async Task HandleCommandPurchase(SocketUserMessage message, string messageText, CreditAccounts creditAccounts, EventCollection events, EventQueue eventQueue, Goals goals)
+        private async Task HandleCommandPurchase(SocketUserMessage message, string messageText, CreditAccounts creditAccounts, EventCollection events,
+            EventQueue eventQueue, Goals goals)
         {
             if (!messageText.StartsWith("!purchase "))
             {
@@ -252,7 +254,8 @@ namespace TTGHotS.Commands
             await PayForEvent(message, creditAccounts, events, eventQueue, goals, chosenEvent, costForNextStack);
         }
 
-        private async Task HandleCommandPay(SocketUserMessage message, string messageText, CreditAccounts creditAccounts, EventCollection events, EventQueue eventQueue, Goals goals)
+        private async Task HandleCommandPay(SocketUserMessage message, string messageText, CreditAccounts creditAccounts, EventCollection events, EventQueue eventQueue,
+            Goals goals)
         {
             if (!messageText.StartsWith("!pay "))
             {
@@ -265,7 +268,7 @@ namespace TTGHotS.Commands
                 _communications.ReplyTo(message, "Usage: !pay [eventName] [creditAmount]");
                 return;
             }
-            
+
             LogPay(message.Author.Username, creditsToPay);
 
             if (creditsToPay <= 0)
@@ -295,6 +298,21 @@ namespace TTGHotS.Commands
         {
             var userAccount = creditAccounts[message.Author.Id];
 
+            var currentMission = _xml.GetCurrentMission(Format.AsIs);
+            if (!chosenEvent.allowedInNoBuild && Mission.NO_BUILD_MISSIONS.Contains(currentMission))
+            {
+                _communications.ReplyTo(message, $"{chosenEvent.name} is disabled on no-build missions.");
+                return;
+            }
+
+            if (!chosenEvent.mission.Equals(Mission.ALL, StringComparison.InvariantCultureIgnoreCase) &&
+                !chosenEvent.mission.Equals(currentMission, StringComparison.InvariantCultureIgnoreCase))
+            {
+                _communications.ReplyTo(message,
+                    $"{chosenEvent.name} can only be activated on mission '{chosenEvent.mission}', but the current mission is {currentMission}");
+                return;
+            }
+
             if (!chosenEvent.IsStackable())
             {
                 var costToNextActivation = chosenEvent.GetCostToNextActivation(events.CurrentMultiplier);
@@ -304,15 +322,15 @@ namespace TTGHotS.Commands
                 }
             }
 
-            if (creditsToPay > userAccount.credits)
+            if (creditsToPay > userAccount.GetCredits())
             {
-                _communications.ReplyTo(message, $"You cannot afford to pay {creditsToPay} credits. Balance: {userAccount.credits}");
+                _communications.ReplyTo(message, $"You cannot afford to pay {creditsToPay} credits. Balance: {userAccount.GetCredits()}");
                 return;
             }
 
             await goals.AssignCreditsToGoal(creditsToPay, eventQueue);
             chosenEvent.AddToBank(creditsToPay);
-            userAccount.credits -= creditsToPay;
+            userAccount.RemoveCredits(creditsToPay);
 
             var numberOfActivations = TriggerEventAsNeeded(message.Author.Username, chosenEvent, eventQueue, events);
 
@@ -326,6 +344,7 @@ namespace TTGHotS.Commands
                 _communications.ReplyTo(message,
                     $"Received {creditsToPay} credits from {message.Author.Username}.  {chosenEvent.name} is now at {chosenEvent.GetBank()}/{chosenEvent.GetMultiplierCost(events.CurrentMultiplier)}.");
             }
+
             eventQueue.PrintToConsole();
         }
 

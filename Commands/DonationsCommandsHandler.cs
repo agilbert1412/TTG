@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
 using TTGHotS.Discord;
@@ -19,12 +22,12 @@ namespace TTGHotS.Commands
             _channels = channels;
         }
 
-        public void HandleEventsDonationCommands(SocketUserMessage message, CreditAccounts accounts)
+        public async Task HandleEventsDonationCommands(SocketUserMessage message, CreditAccounts accounts)
         {
-            HandleDonationCommand(message, accounts);
+            await HandleDonationCommand(message, accounts);
         }
 
-        private void HandleDonationCommand(SocketUserMessage message, CreditAccounts accounts)
+        private async Task HandleDonationCommand(SocketUserMessage message, CreditAccounts accounts)
         {
             // 'St. John Johnson just donated $50.00 with the message "Happy National Child Health Day"!'
             var donationRegex = new Regex(@"(.+) just donated \$(.+) with the message ""(.*)""!", RegexOptions.IgnoreCase);
@@ -43,8 +46,6 @@ namespace TTGHotS.Commands
                 return;
             }
 
-            var name = groups[1].Value;
-            var donationMessage = groups[3].Value;
             if (!double.TryParse(groups[2].Value, out var donationAmount))
             {
                 _communications.ReplyTo(message, $"Donation detected, but couldn't read the dollar amount. {_channels.AdminPing} can you help?");
@@ -52,36 +53,111 @@ namespace TTGHotS.Commands
             }
 
             var creditsEarned = (int)Math.Round(donationAmount * 100);
-            var discordIdRegex = new Regex("([^ ]+)#([0-9]{4})");
 
-            if (!discordIdRegex.IsMatch(donationMessage))
+            var usersInChannel = await _communications.GetUsersInChannel(message.Channel);
+            var usersMentioned = new List<IUser>();
+            foreach (var user in usersInChannel)
             {
-                _communications.ReplyTo(message, $"Donation detected, but couldn't find username. {_channels.AdminPing} can you help?");
+                if (UserIsMentioned(message.Content, user, true))
+                {
+                    usersMentioned.Add(user);
+                }
+            }
+
+            if (!usersMentioned.Any())
+            {
+                foreach (var user in usersInChannel)
+                {
+                    if (UserIsMentioned(message.Content, user, false))
+                    {
+                        usersMentioned.Add(user);
+                    }
+                }
+            }
+
+            if (!usersMentioned.Any())
+            {
+                _communications.ReplyTo(message, $"Donation detected, but couldn't find a username in it. {_channels.AdminPing} can you help?");
                 return;
             }
 
-            var donatorMatch = discordIdRegex.Match(donationMessage);
-            var donatorGroups = donatorMatch.Groups;
-
-            if (donatorGroups.Count < 3)
+            var creditPerUser = creditsEarned / usersMentioned.Count;
+            foreach (var userToGiveCreditsTo in usersMentioned)
             {
-                _communications.ReplyTo(message, $"Donation detected, but username was improperly formatted. {_channels.AdminPing} can you help?");
-                return;
+                var discordId = userToGiveCreditsTo.Id;
+                var account = accounts[discordId];
+                account.AddCredits(creditPerUser);
+                await _communications.ReplyToAsync(message, $"Donation registered for <@{account.discordId}>. Added {creditPerUser} credits to your account. New Balance: {account.GetCredits()}. Thank you for donating!");
+            }
+        }
+
+        private bool UserIsMentioned(string message, IUser user, bool strict)
+        {
+            var delimitingChars = new string[] { " ", "\"", ".", "(", ")", "[", "]", "{", "}", "-", "_", ",", "!", "?" };
+            if (!string.IsNullOrWhiteSpace(user.GlobalName))
+            {
+                foreach (var charBefore in delimitingChars)
+                {
+                    foreach (var charAfter in delimitingChars)
+                    {
+                        if (message.Contains($"{charBefore}{user.GlobalName}{charAfter}"))
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
 
-            var discordName = donatorGroups[1].Value;
-            var discordDiscriminator = donatorGroups[2].Value;
-            var discordId = _communications.GetUserId(discordName, discordDiscriminator);
-
-            if (discordId == 0)
+            if (!string.IsNullOrWhiteSpace(user.Username))
             {
-                _communications.ReplyTo(message, $"Donation detected, but couldn't find user {discordName}#{discordDiscriminator}. {_channels.AdminPing} can you help?");
-                return;
+                foreach (var charBefore in delimitingChars)
+                {
+                    foreach (var charAfter in delimitingChars)
+                    {
+                        if (message.Contains($"{charBefore}{user.Username}{charAfter}"))
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
 
-            var account = accounts[discordId];
-            account.credits += creditsEarned;
-            _communications.ReplyTo(message, $"Donation registered for <@{account.discordId}>. Added {creditsEarned} credits to your account. New Balance: {account.credits}. Thank you for donating!");
+            if (strict)
+            {
+                return false;
+            }
+
+            return (!string.IsNullOrWhiteSpace(user.GlobalName) && message.Contains(user.GlobalName)) ||
+                   (!string.IsNullOrWhiteSpace(user.Username) && message.Contains(user.Username));
+        }
+
+        private void OldDiscordIdMatcher()
+        {
+            //var discordIdRegex = new Regex("([^ ]+)#([0-9]{4})");
+            //if (!discordIdRegex.IsMatch(donationMessage))
+            //{
+            //    _communications.ReplyTo(message, $"Donation detected, but couldn't find username. {_channels.AdminPing} can you help?");
+            //    return;
+            //}
+
+            //var donatorMatch = discordIdRegex.Match(donationMessage);
+            //var donatorGroups = donatorMatch.Groups;
+
+            //if (donatorGroups.Count < 3)
+            //{
+            //    _communications.ReplyTo(message, $"Donation detected, but username was improperly formatted. {_channels.AdminPing} can you help?");
+            //    return;
+            //}
+
+            //var discordName = donatorGroups[1].Value;
+            //var discordDiscriminator = donatorGroups[2].Value;
+            //var discordId = _communications.GetUserId(discordName, discordDiscriminator);
+
+            //if (discordId == 0)
+            //{
+            //    _communications.ReplyTo(message, $"Donation detected, but couldn't find user {discordName}#{discordDiscriminator}. {_channels.AdminPing} can you help?");
+            //    return;
+            //}
         }
     }
 }

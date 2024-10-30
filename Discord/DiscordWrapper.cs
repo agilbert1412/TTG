@@ -74,7 +74,12 @@ namespace TTGHotS.Discord
             await _client.StartAsync();
         }
 
-        public async Task SendMessage(ulong channelId, string text)
+        public void SendMessage(ulong channelId, string text)
+        {
+            SendMessageAsync(channelId, text);
+        }
+
+        public async Task SendMessageAsync(ulong channelId, string text)
         {
             var channel = _client.GetChannel(channelId);
 
@@ -83,20 +88,25 @@ namespace TTGHotS.Discord
                 return;
             }
 
-            await SendMessage(messageChannel, text);
+            await SendMessageAsync(messageChannel, text);
         }
 
-        public async Task SendMessage(ISocketMessageChannel channel, string text)
+        public async Task SendMessageAsync(ISocketMessageChannel channel, string text)
         {
             await channel.SendMessageAsync(text);
         }
 
-        public async void ReplyTo(SocketUserMessage message, string text)
+        public void ReplyTo(SocketUserMessage message, string text)
+        {
+            message.ReplyAsync(text);
+        }
+
+        public async Task ReplyToAsync(SocketUserMessage message, string text)
         {
             await message.ReplyAsync(text);
         }
 
-        public string GetQualifiedName(ulong userId)
+        public string GetDisplayName(ulong userId)
         {
             var user = _client.GetUser(userId);
 
@@ -105,12 +115,29 @@ namespace TTGHotS.Discord
                 return "";
             }
 
-            return $@"{user.Username}#{user.Discriminator}";
+            if (!string.IsNullOrWhiteSpace(user.GlobalName))
+            {
+                return user.GlobalName;
+            }
+
+            return user.Username;
         }
 
-        public ulong GetUserId(string username, string discriminator)
+        public string GetUserName(ulong userId)
         {
-            var user = _client.GetUser(username, discriminator);
+            var user = _client.GetUser(userId);
+
+            if (user == null)
+            {
+                return "";
+            }
+
+            return user.Username;
+        }
+
+        public ulong GetUserId(string username)
+        {
+            var user = _client.GetUser(username);
 
             if (user == null)
             {
@@ -125,12 +152,12 @@ namespace TTGHotS.Discord
             await _client.SetGameAsync(statusText, type: activity);
         }
 
-        public async void DeleteMessage(IMessage message)
+        public async Task DeleteMessage(IMessage message)
         {
             await message.DeleteAsync();
         }
 
-        public async void DeleteAllMessagesInChannel(ulong channelId)
+        public async Task DeleteAllMessagesInChannel(ulong channelId)
         {
             var channel = _client.GetChannel(channelId);
 
@@ -139,19 +166,26 @@ namespace TTGHotS.Discord
                 return;
             }
 
-            DeleteAllMessagesInChannel(messageChannel);
+            await DeleteAllMessagesInChannel(messageChannel);
         }
 
-        public async void DeleteAllMessagesInChannel(ISocketMessageChannel channel)
+        public async Task DeleteAllMessagesInChannel(ISocketMessageChannel channel)
         {
             var messages = channel.GetMessagesAsync();
             var messagesToDelete = await messages.FlattenAsync();
 
             foreach (var message in messagesToDelete)
             {
-                DeleteMessage(message);
+                await DeleteMessage(message);
                 Thread.Sleep(200);
             }
+        }
+
+        public async Task<IUser[]> GetUsersInChannel(ISocketMessageChannel messageChannel)
+        {
+            var users = messageChannel.GetUsersAsync();
+            var flattenedUsers = await users.FlattenAsync();
+            return flattenedUsers.ToArray();
         }
 
         private Task Log(LogMessage message)

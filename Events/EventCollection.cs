@@ -20,7 +20,7 @@ namespace TTGHotS.Events
         {
             _communications = discord;
             _events = new Dictionary<string, Event>();
-            CurrentMultiplier = 1;
+            CurrentMultiplier = 0.1;
         }
 
         public int Count => _events.Count;
@@ -57,6 +57,14 @@ namespace TTGHotS.Events
                 }
             }
 
+            foreach (var eventKey in _events.Keys)
+            {
+                if (levenshtein(eventKey.ToLower(), eventName.ToLower()) < 3)
+                {
+                    return _events[eventKey];
+                }
+            }
+
             Console.WriteLine($"Found no event by the name {eventName}");
             return null;
         }
@@ -72,7 +80,52 @@ namespace TTGHotS.Events
             {
                 e.SetBank(0);
                 e.tier = 0;
+                e.CalculateNewCost();
             }
+        }
+
+        private static int levenshtein(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a))
+            {
+                return string.IsNullOrEmpty(b) ? 0 : b.Length;
+            }
+
+            if (string.IsNullOrEmpty(b))
+            {
+                return string.IsNullOrEmpty(a) ? 0 : a.Length;
+            }
+
+            int cost;
+            var d = new int[a.Length + 1, b.Length + 1];
+            int min1;
+            int min2;
+            int min3;
+
+            for (var i = 0; i <= d.GetUpperBound(0); i += 1)
+            {
+                d[i, 0] = i;
+            }
+
+            for (var i = 0; i <= d.GetUpperBound(1); i += 1)
+            {
+                d[0, i] = i;
+            }
+
+            for (var i = 1; i <= d.GetUpperBound(0); i += 1)
+            {
+                for (var j = 1; j <= d.GetUpperBound(1); j += 1)
+                {
+                    cost = (a[i - 1] != b[j - 1]) ? 1 : 0;
+
+                    min1 = d[i - 1, j] + 1;
+                    min2 = d[i, j - 1] + 1;
+                    min3 = d[i - 1, j - 1] + cost;
+                    d[i, j] = Math.Min(Math.Min(min1, min2), min3);
+                }
+            }
+
+            return d[d.GetUpperBound(0), d.GetUpperBound(1)];
         }
     }
 }

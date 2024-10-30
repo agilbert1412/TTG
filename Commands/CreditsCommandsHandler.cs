@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Discord.WebSocket;
 using TTGHotS.Discord;
 
@@ -29,10 +32,11 @@ namespace TTGHotS.Commands
             // Add Credits to everyone
         }
 
-        public void HandleCreditsUserCommands(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
+        public async Task HandleCreditsUserCommands(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
         {
             HandleReadCredits(message, messageText, creditAccounts);
-            HandleTransferCredits(message, messageText, creditAccounts);
+            await HandleTransferCredits(message, messageText, creditAccounts);
+            await HandleShareCredits(message, messageText, creditAccounts);
         }
 
         private void HandleAddCredits(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
@@ -119,7 +123,7 @@ namespace TTGHotS.Commands
             TellUserHisCreditAmount(message, creditAccounts);
         }
 
-        private void HandleTransferCredits(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
+        private async Task HandleTransferCredits(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
         {
             if (!messageText.StartsWith("!transfercredits "))
             {
@@ -132,7 +136,23 @@ namespace TTGHotS.Commands
                 return;
             }
 
-            TransferCreditsToSomeone(message, discordName, creditAccounts);
+            await TransferCreditsToSomeone(message, discordName, creditAccounts);
+        }
+
+        private async Task HandleShareCredits(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
+        {
+            if (!messageText.StartsWith("!sharecredits"))
+            {
+                return;
+            }
+
+            if (_commandReader.IsCommandValid(message.Content, out ulong minutes))
+            {
+                DistributeCreditsAmongstEveryActivePlayer(message, creditAccounts, minutes);
+                return;
+            }
+
+            DistributeCreditsAmongstEveryActivePlayer(message, creditAccounts, 20);
         }
 
         private void HandleReadCreditsOfSomeone(SocketUserMessage message, string messageText, CreditAccounts creditAccounts)
@@ -154,22 +174,22 @@ namespace TTGHotS.Commands
         private void AddCredits(SocketUserMessage message, CreditAccounts creditAccounts, ulong discordId, int creditsAmount)
         {
             var account = creditAccounts[discordId];
-            account.credits += creditsAmount;
-            _communications.ReplyTo(message, $"Added {creditsAmount} credits to {account.discordName}. New Balance: {account.credits}");
+            account.AddCredits(creditsAmount);
+            _communications.ReplyTo(message, $"Added {creditsAmount} credits to {account.discordName}. New Balance: {account.GetCredits()}");
         }
 
         private void RemoveCredits(SocketUserMessage message, CreditAccounts creditAccounts, ulong discordId, int creditsAmount)
         {
             var account = creditAccounts[discordId];
-            account.credits -= creditsAmount;
-            _communications.ReplyTo(message, $"Removed {creditsAmount} credits from {account.discordName}. New Balance: {account.credits}");
+            account.RemoveCredits(creditsAmount);
+            _communications.ReplyTo(message, $"Removed {creditsAmount} credits from {account.discordName}. New Balance: {account.GetCredits()}");
         }
 
         private void ResetCredits(SocketUserMessage message, CreditAccounts creditAccounts, ulong discordId)
         {
             var account = creditAccounts[discordId];
             account.Reset();
-            _communications.ReplyTo(message, $"Reset credits for {account.discordName}. New Balance: {account.credits}");
+            _communications.ReplyTo(message, $"Reset credits for {account.discordName}. New Balance: {account.GetCredits()}");
         }
 
         private void ResetAllCredits(SocketUserMessage message, CreditAccounts creditAccounts)
@@ -181,14 +201,14 @@ namespace TTGHotS.Commands
         private void SetCredits(SocketUserMessage message, CreditAccounts creditAccounts, ulong discordId, int creditsAmount)
         {
             var account = creditAccounts[discordId];
-            account.credits = creditsAmount;
-            _communications.ReplyTo(message, $"Set credits for {account.discordName} to {account.credits}");
+            account.SetCredits(creditsAmount);
+            _communications.ReplyTo(message, $"Set credits for {account.discordName} to {account.GetCredits()}");
         }
 
         private void TellUserHisCreditAmount(SocketUserMessage message, CreditAccounts creditAccounts)
         {
             var userAccount = creditAccounts[message.Author.Id];
-            var creditAmount = userAccount.credits;
+            var creditAmount = userAccount.GetCredits();
             _communications.ReplyTo(message, $@"You currently have {creditAmount} credits.");
         }
 
@@ -196,14 +216,14 @@ namespace TTGHotS.Commands
         {
             var userAccount = creditAccounts[discordId];
             var userName = userAccount.discordName;
-            var creditAmount = userAccount.credits;
+            var creditAmount = userAccount.GetCredits();
             _communications.ReplyTo(message, $@"{userName} currently has {creditAmount} credits.");
         }
 
-        private void TransferCreditsToSomeone(SocketUserMessage message, string targetUsername, CreditAccounts creditAccounts)
+        private async Task TransferCreditsToSomeone(SocketUserMessage message, string targetUsername, CreditAccounts creditAccounts)
         {
             var userAccount = creditAccounts[message.Author.Id];
-            var creditAmount = userAccount.credits;
+            var creditAmount = userAccount.GetCredits();
 
             CreditAccount targetAccount = null;
             if (targetUsername.ToLower() == "random")
@@ -212,17 +232,7 @@ namespace TTGHotS.Commands
             }
             else
             {
-                var targetParts = targetUsername.Split('#');
-                if (targetParts.Length != 2 || targetParts[0].Length < 1 || targetParts[1].Length != 4)
-                {
-                    _communications.ReplyTo(message, $"Cannot find user {targetUsername}. Please give the full Discord Username including the discriminator, formatted as such: Username#1234");
-                    return;
-                }
-
-                var targetName = targetParts[0];
-                var targetDiscriminator = targetParts[1];
-                var userId = _communications.GetUserId(targetName, targetDiscriminator);
-
+                var userId = _communications.GetUserId(targetUsername);
                 if (userId == 0)
                 {
                     _communications.ReplyTo(message, $"Cannot find user {targetUsername}. The user needs to be online and be in this server.");
@@ -232,9 +242,62 @@ namespace TTGHotS.Commands
                 targetAccount = creditAccounts[userId];
             }
 
-            userAccount.credits -= creditAmount;
-            targetAccount.credits += creditAmount;
-            _communications.ReplyTo(message, $@"You have transferred your entire balance of {creditAmount} credits to {targetAccount.discordName}! Their new balance: {targetAccount.credits}");
+            userAccount.RemoveCredits(creditAmount);
+            targetAccount.AddCredits(creditAmount);
+            _communications.ReplyTo(message, $@"You have transferred your entire balance of {creditAmount} credits to {targetAccount.discordName}! Their new balance: {targetAccount.GetCredits()}");
+        }
+
+        private async Task DistributeCreditsAmongstEveryActivePlayer(SocketUserMessage message, CreditAccounts creditAccounts, ulong maxMinutesSinceLastActivity)
+        {
+            var userAccount = creditAccounts[message.Author.Id];
+            var creditAmount = userAccount.GetCredits();
+
+            if (creditAmount <= 0)
+            {
+                _communications.ReplyTo(message, $"You do not have any credits to distribute");
+                return;
+            }
+
+            var accountsInOrder = creditAccounts.GetAccountsActiveInThePastMinutes(maxMinutesSinceLastActivity, message.Author.Id);
+
+            if (!accountsInOrder.Any())
+            {
+                _communications.ReplyTo(message, $"There are no accounts that were active in the past {maxMinutesSinceLastActivity} minutes available to distribute credits to");
+                return;
+            }
+
+
+            var distributedCredits = new Dictionary<ulong, int>();
+
+            for (var i = 0; i < creditAmount; i++)
+            {
+                var accountIndex = i % accountsInOrder.Length;
+                var account = accountsInOrder[accountIndex];
+                if (!distributedCredits.ContainsKey(account.discordId))
+                {
+                    distributedCredits.Add(account.discordId, 0);
+                }
+
+                distributedCredits[account.discordId]++;
+            }
+
+
+            foreach (var (discordId, creditsToTransfer) in distributedCredits)
+            {
+                var targetAccount = creditAccounts[discordId];
+                targetAccount.AddCredits(creditsToTransfer);
+                userAccount.RemoveCredits(creditsToTransfer);
+            }
+
+            var replyText =
+                $@"You have distributed your entire balance of {creditAmount} among the following {distributedCredits.Count} people:";
+            foreach (var (discordId, creditsToTransfer) in distributedCredits)
+            {
+                var targetAccount = creditAccounts[discordId];
+                replyText += Environment.NewLine + "\t" + " - " + $"{targetAccount.discordName} ({creditsToTransfer} credits)";
+            }
+
+            _communications.ReplyTo(message, replyText);
         }
     }
 }

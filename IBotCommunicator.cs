@@ -12,14 +12,18 @@ namespace TTGHotS
         void InitializeLog();
         void Login(string token);
         void Start(Func<SocketMessage, Task> messageReceivedFunction);
-        Task SendMessage(ulong channelId, string text);
-        Task SendMessage(ISocketMessageChannel channel, string text);
+        void SendMessage(ulong channelId, string text);
+        Task SendMessageAsync(ulong channelId, string text);
+        Task SendMessageAsync(ISocketMessageChannel channel, string text);
         void ReplyTo(SocketUserMessage message, string text);
-        string GetQualifiedName(ulong userId);
-        ulong GetUserId(string username, string discriminator);
+        Task ReplyToAsync(SocketUserMessage message, string text);
+        string GetDisplayName(ulong userId);
+        string GetUserName(ulong userId);
+        ulong GetUserId(string username);
         void SetStatusMessage(string statusText, ActivityType activity = ActivityType.Playing);
-        void DeleteMessage(IMessage message);
-        void DeleteAllMessagesInChannel(ulong channelId);
-        void DeleteAllMessagesInChannel(ISocketMessageChannel channel);
+        Task DeleteMessage(IMessage message);
+        Task DeleteAllMessagesInChannel(ulong channelId);
+        Task DeleteAllMessagesInChannel(ISocketMessageChannel channel);
+        Task<IUser[]> GetUsersInChannel(ISocketMessageChannel messageChannel);
     }
 }

@@ -1,7 +1,10 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using TTGHotS.Discord;
 using TTGHotS.Events;
@@ -13,12 +16,14 @@ namespace TTGHotS
         private readonly IBotCommunicator _communications;
         private readonly XmlHandler _xml;
         private readonly ChannelSet _channels;
+        private readonly Goals _goals;
 
-        public HelpProvider(IBotCommunicator discord, XmlHandler xml, ChannelSet channels)
+        public HelpProvider(IBotCommunicator discord, XmlHandler xml, ChannelSet channels, Goals goals)
         {
             _communications = discord;
             _xml = xml;
             _channels = channels;
+            _goals = goals;
         }
 
         public async void SendAllHelpMessages(EventCollection events)
@@ -28,50 +33,112 @@ namespace TTGHotS
             await SendAdminCommandsListHelp();
         }
 
-        public async void SendAllEventsHelpMessages(EventCollection events)
+        public void SendAllEventsHelpMessages(EventCollection events)
         {
-            await SendEventsListHelp(events, "all", _channels.HelpGenericEventsChannel);
+            SendEventsHelpForAllMissions(events);
             SendEventsHelpForCurrentMission(events);
+            SendEventsHelpForUnits(events);
+            SendEventsHelpForSpearOfAdun(events);
         }
 
-        public async void SendEventsHelpForCurrentMission(EventCollection events)
+        public async Task SendEventsHelpForAllMissions(EventCollection events)
         {
-            var currentMission = _xml.GetCurrentMission(Format.TitleCase);
-            await SendEventsListHelp(events, currentMission, _channels.HelpCurrentMissionEventsChannel);
-        }
-
-        private async Task SendEventsListHelp(EventCollection events, string missionFilter, ulong channel)
-        {
-            _communications.DeleteAllMessagesInChannel(channel);
+            await _communications.DeleteAllMessagesInChannel(_channels.HelpGenericEventsChannel);
             Thread.Sleep(200);
+            var filteredEvents = events.ToList().Where(x => x.mission == "all" && x.category == "generic");
+            await SendEventsListHelp(filteredEvents, "all missions", _channels.HelpGenericEventsChannel, events.CurrentMultiplier);
+        }
 
-            var lowerCaseFilter = missionFilter.ToLower();
+        public async Task SendEventsHelpForCurrentMission(EventCollection events)
+        {
+            await _communications.DeleteAllMessagesInChannel(_channels.HelpCurrentMissionEventsChannel);
+            Thread.Sleep(200);
+            var currentMission = _xml.GetCurrentMission(Format.TitleCase);
+            var filteredEvents = events.ToList().Where(x => x.mission.Equals(currentMission, StringComparison.InvariantCultureIgnoreCase) && x.category == "mission");
+            await SendCurrentMissionHelpMessage($"The Current Mission is '**{currentMission}**'");
+            var goal = _goals.GetGoal(currentMission);
+            if (goal != null)
+            {
+                if (!string.IsNullOrWhiteSpace(goal.missionChanges))
+                {
+                    await SendCurrentMissionHelpMessage($"*{goal.missionChanges}*");
+                }
+                
+                if (!string.IsNullOrWhiteSpace(goal.goalDescription))
+                {
+                    await SendCurrentMissionHelpMessage($"**{XmlHandler.MakeTitleCase(goal.timeframe)} Goal [{goal.cost} credits]**: {goal.goalDescription}");
+                }
+            }
 
-            var isForAllMissions = lowerCaseFilter == "all";
-            var eventsAvailabilityString = isForAllMissions ? "all missions" : $"current mission: {missionFilter}";
+            await SendEventsListHelp(filteredEvents, $"current mission", _channels.HelpCurrentMissionEventsChannel, events.CurrentMultiplier);
+        }
+
+        public async Task SendEventsHelpForUnits(EventCollection events)
+        {
+            await _communications.DeleteAllMessagesInChannel(_channels.HelpUnitSwapEventsChannel);
+            Thread.Sleep(200);
+            var filteredEvents = events.ToList().Where(x => x.category == "units");
+            await SendUnitsHelpMessage($"These event switch all current and future instance of a unit category to one of its 3 variants");
+            await SendEventsListHelp(filteredEvents, $"switching unit types", _channels.HelpUnitSwapEventsChannel, events.CurrentMultiplier);
+        }
+
+        public async Task SendEventsHelpForSpearOfAdun(EventCollection events)
+        {
+            await _communications.DeleteAllMessagesInChannel(_channels.HelpSpearOfAdunEventsChannel);
+            Thread.Sleep(200);
+            var filteredEvents = events.ToList().Where(x => x.category == "soa");
+            await SendSpearOfAdunHelpMessage($"These each add one charge of the ability to the top bar, for use by the player at their chosen time.");
+            await SendSpearOfAdunHelpMessage($"The player does not get any Spear of Adun abilities on their own and must rely on the audience.");
+            await SendEventsListHelp(filteredEvents, $"Spear of Adun abilities", _channels.HelpSpearOfAdunEventsChannel, events.CurrentMultiplier);
+        }
+
+        private async Task SendEventsListHelp(IEnumerable<Event> events, string eventsAvailabilityString, ulong channel, double priceMultiplier)
+        {
             var eventsListString = $"**Events available for {eventsAvailabilityString}:**" + Environment.NewLine;
             eventsListString = StartListString(eventsListString);
+
+            const string START_GREEN = "\u001b[2;36m";
+            const string START_RED = "\u001b[2;31m";
+            const string START_YELLOW = "\u001b[2;33m";
+            const string END_COLOR = "\u001b[0m";
 
             var foundAnyEvent = false;
             var alreadySentMessage = false;
 
             foreach (var eventToDocument in events.ToList())
             {
-                if (eventToDocument.mission.ToLower() == lowerCaseFilter)
+                foundAnyEvent = true;
+                alreadySentMessage = false;
+
+                eventsListString += $"{eventToDocument.name} - Cost: {eventToDocument.GetMultiplierCost(priceMultiplier)} credits" + Environment.NewLine;
+
+
+                if (eventToDocument.alignment == "positive")
                 {
-                    foundAnyEvent = true;
-                    alreadySentMessage = false;
+                    eventsListString += START_GREEN;
+                }
+                else if (eventToDocument.alignment == "negative")
+                {
+                    eventsListString += START_RED;
+                }
+                else if (eventToDocument.alignment == "neutral")
+                {
+                    eventsListString += START_YELLOW;
+                }
 
-                    eventsListString += $"{eventToDocument.name} - Cost: {eventToDocument.GetMultiplierCost(events.CurrentMultiplier)} credits - Mission: [{eventToDocument.mission}]" + Environment.NewLine;
-                    eventsListString += "    " + eventToDocument.description + Environment.NewLine + Environment.NewLine;
+                eventsListString += "    " + eventToDocument.descriptionAnsi + Environment.NewLine;
+                eventsListString += END_COLOR;
 
-                    if (eventsListString.Length > 1600)
-                    {
-                        await FinishStringAndSend(channel, eventsListString);
-                        Thread.Sleep(200);
-                        eventsListString = StartListString("");
-                        alreadySentMessage = true;
-                    }
+                if (eventsListString.Length > 1600)
+                {
+                    await FinishStringAndSend(channel, eventsListString);
+                    Thread.Sleep(200);
+                    eventsListString = StartListString("");
+                    alreadySentMessage = true;
+                }
+                else
+                {
+                    eventsListString += Environment.NewLine;
                 }
             }
 
@@ -90,19 +157,19 @@ namespace TTGHotS
 
         private static string StartListString(string eventsListString)
         {
-            eventsListString += "```" + Environment.NewLine;
+            eventsListString += "```ansi" + Environment.NewLine;
             return eventsListString;
         }
 
         private async Task FinishStringAndSend(ulong channelId, string eventsListString)
         {
             eventsListString += "```";
-            await _communications.SendMessage(channelId, eventsListString);
+            await _communications.SendMessageAsync(channelId, eventsListString);
         }
 
         private async Task SendUserCommandsListHelp()
         {
-            _communications.DeleteAllMessagesInChannel(_channels.HelpCommandsChannel);
+            await _communications.DeleteAllMessagesInChannel(_channels.HelpCommandsChannel);
             Thread.Sleep(200);
 
             var userCommandsListString = "**Commands:**" + Environment.NewLine;
@@ -129,14 +196,17 @@ namespace TTGHotS
             userCommandsListString += "!transfercredits random" + Environment.NewLine;
             userCommandsListString += "    Transfer your entire credit balance to a random person. Use with Caution" + Environment.NewLine + Environment.NewLine;
 
+            userCommandsListString += "!sharecredits [minutes]" + Environment.NewLine;
+            userCommandsListString += "    Transfer your entire credit balance to all the players that have been active in the past X minutes. If omitted, defaults to 20 minutes. Use with Caution" + Environment.NewLine + Environment.NewLine;
+
             userCommandsListString += "```";
 
-            await _communications.SendMessage(_channels.HelpCommandsChannel, userCommandsListString);
+            await _communications.SendMessageAsync(_channels.HelpCommandsChannel, userCommandsListString);
         }
 
         private async Task SendAdminCommandsListHelp()
         {
-            _communications.DeleteAllMessagesInChannel(_channels.AdminHelpChannel);
+            await _communications.DeleteAllMessagesInChannel(_channels.AdminHelpChannel);
             Thread.Sleep(200);
 
             var adminCommandsListString = "**Admin Commands:**" + Environment.NewLine;
@@ -177,7 +247,22 @@ namespace TTGHotS
 
             adminCommandsListString += "```";
 
-            await _communications.SendMessage(_channels.AdminHelpChannel, adminCommandsListString);
+            await _communications.SendMessageAsync(_channels.AdminHelpChannel, adminCommandsListString);
+        }
+
+        private async Task SendCurrentMissionHelpMessage(string message)
+        {
+            await _communications.SendMessageAsync(_channels.HelpCurrentMissionEventsChannel, message);
+        }
+
+        private async Task SendUnitsHelpMessage(string message)
+        {
+            await _communications.SendMessageAsync(_channels.HelpUnitSwapEventsChannel, message);
+        }
+
+        private async Task SendSpearOfAdunHelpMessage(string message)
+        {
+            await _communications.SendMessageAsync(_channels.HelpSpearOfAdunEventsChannel, message);
         }
     }
 }

@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Newtonsoft.Json;
 using TTGHotS.Discord;
@@ -61,8 +62,10 @@ namespace TTGHotS.Events
 
         public async Task AssignCreditsToGoal(int creditsAmount, EventQueue eventQueue)
         {
-            var currentMission = _xml.GetCurrentMission(Format.LowerCase);
-            var currentPlanet = _xml.GetCurrentPlanet(Format.LowerCase);
+            var currentMission = _xml.GetCurrentMission(Format.AsIs);
+            var currentPlanet = _xml.GetCurrentPlanet(Format.AsIs);
+            var missionLower = currentMission.ToLower();
+            var planetLower = currentPlanet.ToLower();
             var planetValue = 0;
             var missionValue = 0;
             var campaignValue = 0;
@@ -76,7 +79,7 @@ namespace TTGHotS.Events
             {
                 if (goal.timeframe == "mission")
                 {
-                    if (goal.mission.ToLower() == currentMission)
+                    if (goal.mission.ToLower() == missionLower)
                     {
                         goal.AddCredits(creditsAmount);
                         Console.WriteLine($"Added {creditsAmount} ({goal.currentBank}/{goal.cost}) to the mission goal for {goal.mission}.");
@@ -87,7 +90,7 @@ namespace TTGHotS.Events
                 }
                 if (goal.timeframe == "planet")
                 {
-                    if (goal.planet.ToLower() == currentPlanet)
+                    if (goal.planet.ToLower() == planetLower)
                     {
                         goal.AddCredits(creditsAmount);
                         Console.WriteLine($"Added {creditsAmount} ({goal.currentBank}/{goal.cost}) to the planet goal for {goal.mission}.");
@@ -104,7 +107,7 @@ namespace TTGHotS.Events
                 }
 
                 Console.WriteLine($"Comparing {goal.currentBank} to {goal.cost} for {goal.mission} and {currentMission}.");
-                if (goal.currentBank >= goal.cost && goal.mission.ToLower() == currentMission) //TESTABLE
+                if (goal.currentBank >= goal.cost && goal.mission.ToLower() == missionLower) //TESTABLE
                 {
                     TriggerGoal(goal, eventQueue);
                 }
@@ -114,7 +117,9 @@ namespace TTGHotS.Events
             var progressValues = new Dictionary<string, string>
             {
                 { "planet", planetValue.ToString() },
+                { "planetName", currentPlanet },
                 { "mission", missionValue.ToString() },
+                { "missionName", currentMission },
                 { "campaign", campaignValue.ToString() },
                 { "missionrepeat", missionRepeat.ToString() },
                 { "planetrepeat", planetRepeat.ToString() }
@@ -151,12 +156,6 @@ namespace TTGHotS.Events
             {
                 return e.ToString();
             }
-        }
-
-        private static string MakeTitleCase(string normalCaseString)
-        {
-            var textInfo = new CultureInfo("en-US", false).TextInfo;
-            return textInfo.ToTitleCase(normalCaseString);
         }
 
         private async void TriggerGoal(Goal metGoal, EventQueue eventQueue)
@@ -196,7 +195,12 @@ namespace TTGHotS.Events
 
             eventQueue.PushAtBeginning(goalEventQueued);
 
-            await _communications.SendMessage(_eventsChannelId, $"We have met the {metGoal.timeframe} goal for {metGoal.mission}!");
+            _communications.SendMessage(_eventsChannelId, $"We have met the {metGoal.timeframe} goal for {metGoal.mission}!");
+        }
+
+        public Goal GetGoal(string currentMission)
+        {
+            return _goalsList.FirstOrDefault(x => x.mission.Equals(currentMission, StringComparison.InvariantCultureIgnoreCase));
         }
     }
 }

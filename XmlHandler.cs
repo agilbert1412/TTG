@@ -177,7 +177,7 @@ namespace TTGHotS
             }
         }
 
-        private string MakeTitleCase(string stringToTitle)
+        public static string MakeTitleCase(string stringToTitle)
         {
             var textInfo = new CultureInfo("en-US", false).TextInfo;
             return textInfo.ToTitleCase(stringToTitle);
