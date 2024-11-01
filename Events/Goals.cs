@@ -158,7 +158,7 @@ namespace TTGHotS.Events
             }
         }
 
-        private async void TriggerGoal(Goal metGoal, EventQueue eventQueue)
+        public void TriggerGoal(Goal metGoal, EventQueue eventQueue)
         {
             Console.WriteLine($"+++ WE HAVE MET THE {metGoal.timeframe} GOAL FOR {metGoal.mission}");
             var goalEvent = new Event();

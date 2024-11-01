@@ -190,6 +190,9 @@ namespace TTGHotS
             userCommandsListString += "!pay [eventName] [creditAmount]" + Environment.NewLine;
             userCommandsListString += "    Pay credits into an event's bank. If the cost threshold is reached, the event will activate. This can activate the event multiple times, if enough credits are paid." + Environment.NewLine + Environment.NewLine;
 
+            userCommandsListString += "!goal" + Environment.NewLine;
+            userCommandsListString += "    Get information about the currently active goal." + Environment.NewLine + Environment.NewLine;
+
             userCommandsListString += "!transfercredits [discordFullUsername]" + Environment.NewLine;
             userCommandsListString += "    Transfer your entire credit balance to a specific user. Use with Caution" + Environment.NewLine + Environment.NewLine;
 
@@ -239,8 +242,14 @@ namespace TTGHotS
             adminCommandsListString += "!triggerevent [eventName]" + Environment.NewLine;
             adminCommandsListString += "    Triggers one instance of the given event right now, bypassing the queue" + Environment.NewLine + Environment.NewLine;
 
+            adminCommandsListString += "!triggergoal" + Environment.NewLine;
+            adminCommandsListString += "    Triggers one instance of the current mission's goal. This works even if the goal is a planet or campaign goal" + Environment.NewLine + Environment.NewLine;
+
             adminCommandsListString += "!setbank [eventName] [bankAmount]" + Environment.NewLine;
             adminCommandsListString += "    Sets the current bank of the given event to a specific value. This can queue one or many instances of the event if the bank crosses the cost threshold" + Environment.NewLine + Environment.NewLine;
+
+            adminCommandsListString += "!pause and !unpause" + Environment.NewLine;
+            adminCommandsListString += "    Pauses and Resumes the dequeueing of events. Viewers can still purchase events, but they will not trigger in-game, they will wait patiently in the queue." + Environment.NewLine + Environment.NewLine;
 
             // adminCommandsListString += "!setmission [mission]" + Environment.NewLine;
             // adminCommandsListString += "    Sets the current mission" + Environment.NewLine + Environment.NewLine;

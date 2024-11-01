@@ -28,6 +28,7 @@ namespace TTGHotS.Commands
             HandleQueueEvent(message, messageText, events, eventQueue);
             HandleTriggerEvent(message, messageText, events, eventQueue);
             HandleSetBank(message, messageText, events, goals);
+            HandleTriggerGoal(message, messageText, goals, eventQueue);
             HandleSetMission(message, messageText);
             HandleSetGlobalPriceMultiplier(message, messageText, events);
             HandleGlobalPause(message, messageText, eventQueue);
@@ -40,6 +41,7 @@ namespace TTGHotS.Commands
             await HandleCommandPurchase(message, messageText, creditAccounts, events, eventQueue, goals);
             await HandleCommandPay(message, messageText, creditAccounts, events, eventQueue, goals);
             HandleGetGlobalPriceMultiplier(message, messageText, events);
+            HandleGetGoal(message, messageText, goals);
         }
 
         private void HandleQueueEvent(SocketUserMessage message, string messageText, EventCollection events, EventQueue eventQueue)
@@ -105,6 +107,22 @@ namespace TTGHotS.Commands
             eventQueue.PrintToConsole();
         }
 
+        private void HandleTriggerGoal(SocketUserMessage message, string messageText, Goals goals, EventQueue eventQueue)
+        {
+            if (!messageText.StartsWith("!triggergoal"))
+            {
+                return;
+            }
+
+            var currentMission = _xml.GetCurrentMission(Format.AsIs);
+            
+            var currentGoal = goals.GetGoal(currentMission);
+            goals.TriggerGoal(currentGoal, eventQueue);
+            _communications.ReplyTo(message, $"Forced the {currentGoal.timeframe} goal for {currentGoal.mission} immediately.");
+
+            eventQueue.PrintToConsole();
+        }
+
         private void HandleSetBank(SocketUserMessage message, string messageText, EventCollection events, Goals goals)
         {
             if (!messageText.StartsWith("!setbank "))
@@ -159,6 +177,13 @@ namespace TTGHotS.Commands
             }
 
             var planet = GetPlanetFromMission(mission);
+            if (string.IsNullOrWhiteSpace(planet))
+            {
+                _communications.ReplyTo(message, $"Unrecognized mission name '{mission}'");
+                return;
+            }
+
+            _xml.WriteXML(XmlHandler.XML_MISSION, mission);
             _xml.WriteXML(XmlHandler.XML_PLANET, planet);
             _communications.ReplyTo(message, $"Force set: {mission} and {planet}!");
         }
@@ -207,6 +232,28 @@ namespace TTGHotS.Commands
             }
 
             _communications.ReplyTo(message, $"The global event price is currently {events.CurrentMultiplier}");
+        }
+
+        private void HandleGetGoal(SocketUserMessage message, string messageText, Goals goals)
+        {
+            if (!messageText.StartsWith("!goal"))
+            {
+                return;
+            }
+
+            var currentMission = _xml.GetCurrentMission(Format.AsIs);
+
+            var currentGoal = goals.GetGoal(currentMission);
+
+            if (currentGoal == null)
+            {
+                _communications.ReplyTo(message, "There is no active goal right now.");
+                return;
+            }
+
+            var replyText = $"The current {currentGoal.timeframe} goal is for {currentGoal.mission} and is at {currentGoal.displayBank}/{currentGoal.cost} credits";
+            replyText += $"{Environment.NewLine}Description: {currentGoal.goalDescription}";
+            _communications.ReplyTo(message, replyText);
         }
 
         private void HandleCommandBank(SocketUserMessage message, string messageText, EventCollection events)
@@ -449,7 +496,7 @@ namespace TTGHotS.Commands
                     return "AiurA";
                 case "thegrowingshadow":
                     return "AiurA";
-                case "spearofadun":
+                case "thespearofadun":
                     return "AiurA";
                 case "amon'sreach":
                     return "Shakuras";
@@ -490,7 +537,7 @@ namespace TTGHotS.Commands
                 case "amon'sfall":
                     return "Epilogue";
                 default:
-                    return "ERROR";
+                    return null;
             }
         }
     }
