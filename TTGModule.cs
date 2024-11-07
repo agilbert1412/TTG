@@ -16,7 +16,7 @@ namespace TTGHotS
     {
         private readonly IBotCommunicator _communications;
 
-        private readonly ChannelSet _activeChannels = ChannelSet.TestMyBotsChannels;
+        private readonly ChannelSet _activeChannels = ChannelSet.ExtraLifeChannels;
 
         private readonly CreditsCommandsHandler _creditsCommandsHandler;
         private readonly EventsCommandsHandler _eventsCommandsHandler;
@@ -89,9 +89,9 @@ namespace TTGHotS
             for (var i = 0; i < 4; i++)
             {
                 var ability = _xml.GetSpearOfAdunAbility(i);
-                Console.WriteLine($"SoA Slot {i}: {ability}");
                 if (ability == null || ability.ToLower() == "none")
                 {
+                    Console.WriteLine($"SoA Slot {i}: {ability}");
                     var abilityToSend = soaQueue.First();
                     soaQueue.RemoveAt(0);
                     var abilityId = SOA_DICT[abilityToSend];
