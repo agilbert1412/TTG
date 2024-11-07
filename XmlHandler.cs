@@ -112,11 +112,19 @@ namespace TTGHotS
 
         private string ReadXML(string location, string type, string bankFile)
         {
-            var doc = new XmlDocument();
-            doc.Load(bankFile);
-            var node = doc.DocumentElement.SelectSingleNode(location);
-            var nodeAttribute = node.Attributes[type];
-            return nodeAttribute.Value;
+            try
+            {
+                var doc = new XmlDocument();
+                doc.Load(bankFile);
+                var node = doc.DocumentElement.SelectSingleNode(location);
+                var nodeAttribute = node.Attributes[type];
+                return nodeAttribute.Value;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return null;
+            }
         }
 
         public void WriteXML(string location, string value)
@@ -156,6 +164,11 @@ namespace TTGHotS
 
         private string FormatString(string stringToFormat, Format format)
         {
+            if (stringToFormat == null)
+            {
+                return "";
+            }
+
             switch (format)
             {
                 case Format.AsIs:
