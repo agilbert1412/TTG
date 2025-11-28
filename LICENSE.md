@@ -31,4 +31,4 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 In Kaito Kid terms: You can use and distribute the software as-is, as you want, but if you wish to modify it, I'd appreciate if you talked to me about it first. I won't bite.
 
-Note: A lot of the code this is based on, was given to me free of licensing by @7thAce , and was subsequently massively modified for my needs. As a result, @7thAce should be considered co-owner of this code and can do anything he wants with it
+Note: A lot of the code this is based on, was given to me free of licensing by @7thAce , and was subsequently massively modified for my needs. As a result, @7thAce should be considered co-owner of this code and can do anything she wants with it
